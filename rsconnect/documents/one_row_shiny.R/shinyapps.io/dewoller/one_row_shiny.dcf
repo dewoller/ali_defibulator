@@ -1,0 +1,11 @@
+name: one_row_shiny
+title:
+username:
+account: dewoller
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9524746
+bundleId: 7509384
+url: https://dewoller.shinyapps.io/one_row_shiny/
+when: 1690634596.97806
+lastSyncTime: 1690634596.97807

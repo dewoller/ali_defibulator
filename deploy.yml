@@ -1,0 +1,8 @@
+default: 
+  doc: "For deployment to shiny server"
+
+one_loc:
+ # appid: 9396324
+ account: "dewoller"
+ appname: "one_row_shiny"
+

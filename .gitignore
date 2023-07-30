@@ -1,0 +1,17 @@
+_targets/
+.RData
+
+
+nohup.out
+doc/
+.DS_Store
+explore/*html
+.Renviron
+.Rproj.user
+log
+*.swp
+*/*.swp
+**/*.tmp.R
+.Rhistory
+__pycache__
+*/.ipynb_checkpoints/
