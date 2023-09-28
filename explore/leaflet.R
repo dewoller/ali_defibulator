@@ -1,4 +1,5 @@
-library(leaflet)
+targets::tar_source()
+
 library(osmdata)
 library(targets)
 
@@ -27,20 +28,32 @@ map <- addTiles(map)
 
 
 
-
-# Note that purrr::map returns the map object, so the assignment is not necessary, but it's done here for clarity.
-
-
 tar_load( defib1 ) 
-tar_load( sua_sf ) 
+tar_load( sua ) 
+sua_sf = st_singles_to_multi( sua )
 
 map %>%
   addMarkers(data = defib1,
              lat = ~latitude,
              lng = ~longitude
   ) %>%
-  addPolygons(data=sua_sf, fillColor = 'blue' , fillOpacity = 0.1, color = "lightblue")
+  addPolygons(data=sua_sf, fillColor =  , fillOpacity = 0.5, color = "lightblue")
 
 
-map
+
+
+
+tar_load( sja_defib_reservoir_sf ) 
+tar_load( sua_nh_vic_reservoir ) 
+
+st_singles_to_multi(sua_nh_vic_reservoir ) %>%
+	mutate( within_reservoir = (street %in% sja_defib_reservoir_sf$street )) %>%
+	{.} -> sua_sf
+
+pal <- colorNumeric("viridis", sua_sf$within_reservoir)
+
+map %>%
+  addMarkers(data = sja_defib_reservoir_sf) %>%
+  addPolygons(data=sua_sf, fillColor = ~pal( within_reservoir ) , fillOpacity = 0.5) 
+
 
