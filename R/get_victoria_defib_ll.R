@@ -1,5 +1,5 @@
 
-get_sja_defib_ll = function( url ) {
+get_victoria_defib_ll = function( url ) {
 
 	rvest::read_html(url)%>% 
 		rvest::html_text() %>% 

@@ -1,4 +1,13 @@
-summarise_one_sua_set = function( sua, mesh_in_reservoir ){
+if( FALSE) {
+
+sua = victoria_defib_sua_reservoir_no_holes
+
+
+}
+summarise_one_sua_set = function( sua, mesh_in_reservoir, canonical_ll ){
+
+	tmp_canonical_ll = 
+	select( canonical_ll, full_address, latitude, longitude)
 
 	sua %>%
 		st_singles_to_multi() %>%
@@ -17,36 +26,37 @@ mesh_in_reservoir_intersect_sua %>%
 		{.} -> all_data
 
 	all_data %>%
-		group_by( street,  sua_area) %>%
+		group_by( full_address,  sua_area) %>%
 		summarise( population_weighted_seifa = weighted.mean( seifa_score, person), .groups='drop')  %>%
 		{.} -> point_seifa
 	
 
 	all_data %>% 
-		count( street, sua_area, seifa_decile, wt=person) %>%
-		group_by( street, sua_area) %>%
-		filter( n == max(n)) %>%
+		count( full_address, sua_area, seifa_decile, wt=person) %>%
+		group_by( full_address, sua_area) %>%
+		slice_max( n, with_ties=FALSE) %>%
 		rename( most_populous_seifa_decile = seifa_decile)  %>%
 		select( -n) %>%
 		{.} -> point_decile
 
 	all_data %>% 
-		count( street, sua_area, mb_category_name_2021, wt=area_covered) %>%
-		group_by( street, sua_area) %>%
-		filter( n == max(n)) %>%
+		count( full_address, sua_area, mb_category_name_2021, wt=area_covered) %>%
+		group_by( full_address, sua_area) %>%
+		slice_max( n, with_ties=FALSE) %>%
 		rename( largest_mb_category = mb_category_name_2021)  %>%
 		select( -n) %>%
 		{.} -> point_mb_category
 
 	all_data %>%
-		group_by( street,  sua_area) %>%
+		group_by( full_address,  sua_area) %>%
 		summarise( across( c( 'person', 'dwelling', 'area_covered'), sum ),
 			.groups = 'drop') %>%
 		rename( person_covered = person,
 			dwelling_covered = dwelling) %>%
-		inner_join(  point_mb_category, by = c('street', 'sua_area')) %>%
-		inner_join(  point_seifa, by = c('street', 'sua_area')) %>%
-		inner_join(  point_decile, by = c('street', 'sua_area')) %>%
-		rename( sua_area_sqkm = sua_area) 
+		inner_join(  point_mb_category, by = c('full_address', 'sua_area')) %>%
+		inner_join(  point_seifa, by = c('full_address', 'sua_area')) %>%
+		inner_join(  point_decile, by = c('full_address', 'sua_area')) %>%
+		rename( sua_area_sqkm = sua_area) %>%
+		inner_join( tmp_canonical_ll, by = c('full_address')) 
 
 }
