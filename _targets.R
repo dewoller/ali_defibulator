@@ -8,8 +8,8 @@ library(tarchetypes)
 
 
 sja_defib_addresses_toadd = tribble( 
-	~street, ~full_address, ~latitude, ~longitude,
-	"Reservoir Station", "Reservoir Station, Victoria, 3073 AUSTRALIA", -37.7168,145.0071
+	 ~full_address, ~latitude, ~longitude,
+	 "Reservoir Station, Victoria, 3073 AUSTRALIA", -37.7168,145.0071
 )
 
 vic_defib_addresses =	tribble(
@@ -112,7 +112,7 @@ tar_plan(
 	victoria_defib_cleaned =
 
 	vic_defib_addresses %>%
-		filter( !str_detect( type, "ST JOHN AMBULANCE VICTORIA DEFIB IN YOUR STREET")) %>%
+		filter( !str_detect( type, "ST JOHN AMBULANCE")) %>%
 		geocode(full_address, method = 'osm', lat = latitude , long = longitude) %>%
 		mutate( full_address = str_c( type, ' ', full_address)) %>%
 		select( -type ) %>%
@@ -371,9 +371,14 @@ mesh_closest_defib_vic %>%
 ,
 
 
+sua_mb_summary_all =
+	bind_rows( sua_mb_summary_nh, sua_mb_summary_nh_vic)
+
+	,
+
 
 	# xls	output
-	export_reservoir = 
+	export_sja = 
 	list( 
 		sja_mb_coverage = sua_mb_summary_nh,
 		mesh_closest_defib_all= mesh_closest_defib_all
@@ -383,7 +388,7 @@ mesh_closest_defib_vic %>%
 
 	,
 
-	export_vic = 
+	export_pre_sja = 
 	list( 
 		pre_sja_mb_coverage = sua_mb_summary_nh_vic,
 		mesh_closest_defib_vic = mesh_closest_defib_vic
@@ -406,15 +411,15 @@ mesh_closest_defib_vic %>%
 	maps_output = 
 
 	list( 
-		"sja_defib" = sja_defib_sf,
-		"pre_sja_defib_reservoir" = victoria_defib_reservoir_sf,
+		"sja_defib" = sja_defib_sf %>% inner_join( sua_mb_summary_all, by = join_by(full_address) ),
+		"pre_sja_defib_reservoir" = victoria_defib_reservoir_sf%>% inner_join( sua_mb_summary_all, by = join_by(full_address) ),
 		"reservoir_buffered_sf" = reservoir_buffered_sf,
 		"reservoir" = reservoir_sf,
-		"sa1_2021_seifa" = sa1_2021 %>% inner_join( sa1_2021_seifa_final, by = join_by(sa1_code_2021) ),
-		"sja_defib_sua_noholes" =  sja_defib_no_holes %>% st_singles_to_multi(),
-		"pre_sja_defib_sua_noholes" = victoria_defib_sua_reservoir_no_holes %>% st_singles_to_multi(),
-		"sja_defib_sua" =  sja_defib_sua %>% st_singles_to_multi(),
-		"pre_sja_defib_sua" = victoria_defib_sua_reservoir%>% st_singles_to_multi()
+		# "sa1_2021_seifa" = sa1_2021 %>% inner_join( sa1_2021_seifa_final, by = join_by(sa1_code_2021) ),
+		"sja_defib_sua_noholes" =  sja_defib_no_holes %>% st_singles_to_multi()%>% inner_join( sua_mb_summary_all, by = join_by(full_address) ),
+		"pre_sja_defib_sua_noholes" = victoria_defib_sua_reservoir_no_holes %>% st_singles_to_multi()%>% inner_join( sua_mb_summary_all, by = join_by(full_address) ),
+		"sja_defib_sua" =  sja_defib_sua %>% st_singles_to_multi()%>% inner_join( sua_mb_summary_all, by = join_by(full_address) ),
+		"pre_sja_defib_sua" = victoria_defib_sua_reservoir%>% st_singles_to_multi()  %>% inner_join( sua_mb_summary_all, by = join_by(full_address) )
 		)  %>%
 		purrr::walk2(names(.), ., ~st_write( .y, glue::glue('output/{.x}.geojson'), delete_dsn = TRUE))
 
