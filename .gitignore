@@ -1,6 +1,6 @@
 _targets/
 .RData
-
+data/
 
 nohup.out
 doc/

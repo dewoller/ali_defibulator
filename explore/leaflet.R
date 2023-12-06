@@ -32,6 +32,8 @@ tar_load( defib1 )
 tar_load( sua ) 
 sua_sf = st_singles_to_multi( sua )
 
+
+
 map %>%
   addMarkers(data = defib1,
              lat = ~latitude,

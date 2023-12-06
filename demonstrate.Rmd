@@ -1,0 +1,49 @@
+
+
+
+```{r}
+
+victoria_defib %>%
+	# filter( str_detect( address, '3073') ) %>%
+	# filter( str_detect( company, 'JOHN') )  %>%
+	{.} -> from_json
+
+
+sja_defib %>% 
+	drop_na() %>%
+	bind_rows(sja_defib_addresses_toadd )  %>%
+	distinct() %>%
+	mutate( id = row_number() ) %>%
+	{.} -> sja_defib
+
+# Assuming from_json and sja_defib are your data frames
+
+# Load the geosphere library for the distHaversine function
+library(geosphere)
+
+# Create empty columns in from_json for the closest_lat, closest_lon, and distance
+from_json$distance <- NA
+from_json$closest_id <- NA
+# Loop through each row in from_json
+for (i in 1:nrow(from_json)) {
+  # Calculate the distances between the current row in from_json and all rows in sja_defib
+  distances <- distHaversine(c(from_json[i, "lon"][[1]], from_json[i, "lat"][[1]]),
+                             matrix(c(sja_defib$longitude, sja_defib$latitude), ncol = 2, byrow = FALSE))
+  # Find the index of the row in sja_defib with the minimum distance
+  closest_idx <- which.min(distances)
+  # Update from_json with the closest latitude, longitude, and distance
+  from_json[i, "distance"] <- distances[closest_idx]
+  from_json[i, "closest_id"] <- closest_idx
+}
+
+# closest web from every provided SJA ppoing.  Ramleh missing from web
+from_json %>%
+	inner_join( sja_defib, by=c('closest_id'='id')) %>%
+	select( address, full_address, distance, closest_id ) %>%
+	group_by(closest_id) %>%
+	slice_min( distance ) %>%
+	ungroup() %>%
+	arrange(  desc( distance)) 
+
+
+```
