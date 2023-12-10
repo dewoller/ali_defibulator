@@ -185,10 +185,15 @@ vacar_export = vacar_sf %>%
     tidylog::inner_join(vacar_distance_to_nearest_defib, by = join_by(va_internal_id)) %>%
     tidylog::inner_join(vacar_distance_to_nearest_defib_no_sja, by = join_by(va_internal_id)) %>%
     tidylog::inner_join(select(vacar_mesh_detail, mb_code_2021, va_internal_id), by = join_by(va_internal_id)) %>%
-    tidylog::inner_join(mesh_export, by = join_by(mb_code_2021)) %>%
-    tidylog::left_join(count(vacar_sua, va_internal_id, name = "n_within_sua"), by = join_by(va_internal_id)) 
+    tidylog::inner_join(select( mesh_export, -starts_with('duration2'), -starts_with('distance2')), by = join_by(mb_code_2021)) %>%
+    tidylog::left_join(count(vacar_sua, va_internal_id, name = "n_within_sua"), by = join_by(va_internal_id))  %>%
+    mutate( sja_improvment_duration = duration2defib_no_sja - duration2defib_no_sja  ) %>%
+    mutate( sja_improvment_distance = distance2defib_no_sja - distance2defib) %>%
+    mutate( sja_did_improvment = closest_defib_id_no_sja != closest_defib_id ) 
 
 ,
+
+sja_improvment_duration	sja_improvment_distance	sja_did_improvment
 #     vacar_nearest_defib_index = st_nearest_feature( vacar_sf, victoria_defib_cleaned_sf)
 #     ,
 #     vacar_nearest_non_sja_defib_index = st_nearest_feature( vacar_sf, victoria_defib_no_sja_sf),
@@ -200,13 +205,21 @@ vacar_export = vacar_sf %>%
 
 vacar_distance_to_nearest_defib =
     find_closest_osrm_points_closest_n(vacar_sf, victoria_defib_cleaned_sf, n = 10) %>%
-    select(va_internal_id, distance2defib = distance, duration2defib = duration)
+    mutate( closest_defib_name = paste( company, address, postcode )) %>%
+    select(va_internal_id, distance2defib = distance, duration2defib = duration, closest_defib_name, 
+     closest_defib_id = sua_id)
 
 ,
 
 vacar_distance_to_nearest_defib_no_sja =
     find_closest_osrm_points_closest_n(vacar_sf, victoria_defib_no_sja_sf, n = 10) %>%
-    select(va_internal_id, distance2defib_no_sja = distance, duration2defib_no_sja = duration)
+    mutate( closest_defib_name = paste( company, address, postcode )) %>%
+    select(va_internal_id, 
+    distance2defib_no_sja = distance, 
+    duration2defib_no_sja = duration,
+    closest_defib_name_no_sja = closest_defib_name,
+    closest_defib_id_no_sja = sua_id
+    )
 
 ,
 
