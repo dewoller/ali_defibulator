@@ -28,24 +28,28 @@ summarise_one_sua <- function(nn, isochrone, mesh_detail_final) {
     }
 
 
-    rv %>%
-        # select(ends_with("_pop"), dwelling, person, overlap, everything()) %>%
-        summarise(
-            n_mesh_intersections = n(),
-            weighted_seifa_score = sum(seifa_score) / sum(person),
-            mutate(across(
-                c(ends_with("_pop"), dwelling, person, overlap),
-                sum,
-                na.rm = TRUE
-            )),
-            .groups = "drop",
-        ) %>%
-        # select(ends_with("_pop"), dwelling, person, overlap, everything()) %>%
-        mutate(most_populous_decile = most_populous_decile) %>%
-        mutate(across(
-            ends_with("_pop"),
-            .fns = list(prop = ~ .x / person)
-        )) %>%
-        as_tibble()
+	rv %>%
+		# select(ends_with("_pop"), dwelling, person, overlap, everything()) %>%
+		# following line is implicit 
+		# because there should be only one sua under consideration here, 
+		# returning a single row of data
+		# group_by( mb_code_2021, sa1_code_2021 ) %>%
+		summarise(
+			n_mesh_intersections = n(),
+			weighted_seifa_score = sum(seifa_score) / sum(person),
+			mutate(across(
+				c(ends_with("_pop"), dwelling, person, overlap),
+				sum,
+				na.rm = TRUE
+			)),
+			.groups = "drop",
+		) %>%
+		# select(ends_with("_pop"), dwelling, person, overlap, everything()) %>%
+		mutate(most_populous_decile = most_populous_decile) %>%
+		mutate(across(
+			ends_with("_pop"),
+			.fns = list(prop = ~ .x / person)
+		)) %>%
+		as_tibble()
 
 }

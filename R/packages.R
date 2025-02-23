@@ -1,29 +1,28 @@
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(
-    dotenv,
-    conflicted,
-    purrr,
-    lubridate,
-    stringr,
-    janitor,
-    glue,
-    dplyr,
-    fs,
-    sf,
-    readr,
-    tidygeocoder,
-    jsonlite,
-    leaflet,
-    osmdata,
-    osrm,
-    tidyr,
-    rlang,
-    readxl,
-    strayr,
-	nngeo,
-    tidyverse,
-    units
-)
+
+library(dotenv)
+library(conflicted)
+library(purrr)
+library(lubridate)
+library(stringr)
+library(janitor)
+library(glue)
+library(dplyr)
+library(fs)
+library(sf)
+library(readr)
+library(tidygeocoder)
+library(jsonlite)
+library(leaflet)
+library(osmdata)
+library(osrm)
+library(tidyr)
+library(rlang)
+library(readxl)
+library(strayr)
+library(nngeo)
+library(tidyverse)
+library(sf)
+library(units)
 
 
 conflicted::conflicts_prefer(
