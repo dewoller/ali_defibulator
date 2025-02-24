@@ -20,7 +20,7 @@ data.frame(
 
 
 # setup the defib urls
-vic_defib_urls <-
+vic_defib_urls = 
 readRDS("data/postcode2021.rds") %>%
 	mutate(url = glue::glue("
 		https://registermyaed.ambulance.vic.gov.au/find-an-aed?lat={cent_lat}&lng={cent_long}&place={postcode_2021}&availability=all")) %>%
@@ -93,27 +93,26 @@ tar_plan(
 	,
 
 
-	################################################################################
-	# this is the mass of targets that is all the defib URLs, one per postcode, 
-	# and the call to download the list of defibs for the postcode
-	victoria_defib_targets, 
-	#
-	tar_combine(
-		# this is the output, all the cleaned and deduplicated URLs
-		victoria_defib_cleaned_prelim,
-		victoria_defib_targets[[2]],
-		command =
-		dplyr::bind_rows(!!!.x) %>%
-			distinct(lat, lon, .keep_all = TRUE) %>%
-			rename(latitude = lat, longitude = lon)
-	)
+	# ################################################################################
+	# # this is the mass of targets that is all the defib URLs, one per postcode, 
+	# # and the call to download the list of defibs for the postcode
+	# victoria_defib_targets, 
+	# #
+	# tar_combine(
+	# 	# this is the output, all the cleaned and deduplicated URLs
+	# 	victoria_defib_cleaned_prelim,
+	# 	victoria_defib_targets[[2]],
+	# 	command =
+	# 	dplyr::bind_rows(!!!.x) %>%
+	# 		distinct(lat, lon, .keep_all = TRUE) %>%
+	# 		rename(latitude = lat, longitude = lon)
+	# )
 
+victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 	,
 
 		victoria_defib_cleaned  =
 		victoria_defib_cleaned_prelim %>%
-		filter( !company %in% defib_to_delete) %>%
-		bind_rows(defib_to_add) %>%
 		mutate( sua_id = row_number()) 
 
 ,
@@ -350,7 +349,20 @@ tar_plan(
 
 	victoria_defib_sua_temp =
 	victoria_defib_cleaned %>%
-		mutate(isochrone = map2(latitude, longitude, point2isochrone)) 
+		mutate(
+		isochrone = map2(latitude, longitude,
+			~ point2isochrone(
+				latitude = .x,
+				longitude = .y,
+				time_limit = 4*60,
+				mode = "foot",
+				orsm = "http://localhost:1234/",
+				# Possibly override if needed:
+				fallback_radius = 160
+			)
+		)
+		)
+
 
 	,
 
