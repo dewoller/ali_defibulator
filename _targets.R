@@ -453,7 +453,7 @@ victoria_defib_sua =
 	# Census 2021
 	census_cald_columns =
 
-	read_xlsx("../../reference_datasets/Metadata_2021_GCP_DataPack_R1_R2.xlsx", sheet = "Cell Descriptors Information") %>%
+	read_xlsx("~/code/reference_datasets/Metadata_2021_GCP_DataPack_R1_R2.xlsx", sheet = "Cell Descriptors Information") %>%
 		clean_names() %>%
 		filter(str_detect(data_packfile, "G11")) %>%
 		filter(long %in% c(
@@ -468,7 +468,7 @@ victoria_defib_sua =
 	# the number of CALD for each SA1
 	cald_sa1 = 
 
-	read_csv("../../reference_datasets/2021_Census_GCP_Statistical_Area_1_for_VIC/2021Census_G11D_VIC_SA1.csv") %>%
+	read_csv("~/code/reference_datasets/2021_Census_GCP_Statistical_Area_1_for_VIC/2021Census_G11D_VIC_SA1.csv") %>%
 		select(SA1_CODE_2021, all_of(census_cald_columns)) %>%
 		mutate(SA1_CODE_2021 = as.character(SA1_CODE_2021)) %>%
 		mutate(cald = rowSums(across(where(is.numeric)), na.rm = TRUE)) %>%
@@ -479,7 +479,7 @@ victoria_defib_sua =
 
 	census_age_55_plus_columns =
 
-	read_xlsx("../../reference_datasets/Metadata_2021_GCP_DataPack_R1_R2.xlsx", sheet = "Cell Descriptors Information") %>%
+	read_xlsx("~/code/reference_datasets/Metadata_2021_GCP_DataPack_R1_R2.xlsx", sheet = "Cell Descriptors Information") %>%
 		clean_names() %>%
 		filter(str_detect(data_packfile, "G01")) %>%
 		filter(str_detect(long, "^Age[_ ]groups[_ ][5678]5.*Persons$")) %>%
@@ -489,7 +489,7 @@ victoria_defib_sua =
 
 	age_55_plus_sa1 =
 
-	read_csv("../../reference_datasets/2021_Census_GCP_Statistical_Area_1_for_VIC/2021Census_G01_VIC_SA1.csv") %>%
+	read_csv("~/code/reference_datasets/2021_Census_GCP_Statistical_Area_1_for_VIC/2021Census_G01_VIC_SA1.csv") %>%
 		select(SA1_CODE_2021, all_of(census_age_55_plus_columns)) %>%
 		mutate(SA1_CODE_2021 = as.character(SA1_CODE_2021)) %>%
 		mutate(age_55_plus= rowSums(across(where(is.numeric)), na.rm = TRUE)) %>%
