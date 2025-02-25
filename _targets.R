@@ -232,8 +232,8 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 	mesh_export = 
 
 	mesh_detail_final %>%
-		tidylog::inner_join(mesh_distance_to_nearest_defib, by = join_by(mb_code_2021)) %>%
-		tidylog::inner_join(mesh_distance_to_nearest_defib_no_sja, by = join_by(mb_code_2021)) %>%
+		# tidylog::inner_join(mesh_distance_to_nearest_defib, by = join_by(mb_code_2021)) %>%
+		# tidylog::inner_join(mesh_distance_to_nearest_defib_no_sja, by = join_by(mb_code_2021)) %>%
 		tidylog::left_join(sua_detail_no_sja, by=join_by(closest_defib_id_no_sja==sua_id)) %>%
 		tidylog::left_join(sua_detail_sja, by=join_by(closest_defib_id==sua_id)) %>%
 		tidylog::left_join(reservoir_mesh, by = join_by(mb_code_2021)) %>%
@@ -329,31 +329,31 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 
 	,
 
-	mesh_distance_to_nearest_defib =
+	# mesh_distance_to_nearest_defib =
 
-	mesh_2021_vic_centroid_sf %>%
-	select( -starts_with('mb_cat_2021')) %>%
-		find_closest_osrm_points_closest_n(
-			., 
-			select( victoria_defib_cleaned_sf, -starts_with('mb_cat_2021')), 
-			n = 10, 
-			st_coordinates(.$centroid)) %>%
-		select(mb_code_2021,
-			distance2defib = distance,
-			duration2defib = duration,
-			closest_defib_id = sua_id
-	)
+	# mesh_2021_vic_centroid_sf %>%
+	# select( -starts_with('mb_cat_2021')) %>%
+	# 	find_closest_osrm_points_closest_n(
+	# 		., 
+	# 		select( victoria_defib_cleaned_sf, -starts_with('mb_cat_2021')), 
+	# 		n = 10, 
+	# 		st_coordinates(.$centroid)) %>%
+	# 	select(mb_code_2021,
+	# 		distance2defib = distance,
+	# 		duration2defib = duration,
+	# 		closest_defib_id = sua_id
+	# )
 
-	,
+	# ,
 
-	mesh_distance_to_nearest_defib_no_sja =
-	mesh_2021_vic_centroid_sf %>%
-		find_closest_osrm_points_closest_n(., victoria_defib_no_sja_sf, n = 10, st_coordinates(.$centroid)) %>%
-		select(mb_code_2021,
-			distance2defib_no_sja = distance,
-			duration2defib_no_sja = duration,
-			closest_defib_id_no_sja = sua_id
-			)
+	# mesh_distance_to_nearest_defib_no_sja =
+	# mesh_2021_vic_centroid_sf %>%
+	# 	find_closest_osrm_points_closest_n(., victoria_defib_no_sja_sf, n = 10, st_coordinates(.$centroid)) %>%
+	# 	select(mb_code_2021,
+	# 		distance2defib_no_sja = distance,
+	# 		duration2defib_no_sja = duration,
+	# 		closest_defib_id_no_sja = sua_id
+	# 		)
 
 	,
 	################################################################################
