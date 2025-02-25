@@ -351,7 +351,15 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 
 	mesh_distance_to_nearest_defib_no_sja =
 	mesh_2021_vic_centroid_sf %>%
-		find_closest_osrm_points_closest_n(., victoria_defib_no_sja_sf, n = 10, st_coordinates(.$centroid)) %>%
+	select(-starts_with('mb_cat_2021')) %>%
+        # Add validation to remove any rows with NA coordinates
+        filter(!is.na(st_coordinates(.$centroid)[,1]), 
+               !is.na(st_coordinates(.$centroid)[,2])) %>%
+		find_closest_osrm_points_closest_n(
+			., 
+			select(victoria_defib_no_sja_sf, -starts_with('mb_cat_2021')), 
+			n = 10, 
+			st_coordinates(.$centroid)) %>%
 		select(mb_code_2021,
 			distance2defib_no_sja = distance,
 			duration2defib_no_sja = duration,
