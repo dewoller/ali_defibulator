@@ -48,25 +48,37 @@ find_closest_osrm_points = function(setB, setA) {
 
 find_closest_osrm_points_closest_n = function(setB, setA, n = 10, setB_coords = st_coordinates(setB)) {
     # for each in setB, find the n closest points in setA, and then find the closest osrm from these
+    
+    # Validate input coordinates
+    if (any(is.na(setB_coords))) {
+        warning("Found NA coordinates in setB. Removing rows with NA coordinates.")
+        valid_rows <- !is.na(setB_coords[,1]) & !is.na(setB_coords[,2])
+        setB <- setB[valid_rows,]
+        setB_coords <- setB_coords[valid_rows,]
+    }
+    
+    if (nrow(setB) == 0) {
+        stop("No valid coordinates found in setB after filtering NA values")
+    }
 
     dist_matrix <- st_distance(setB, setA)
 
-    # Initialize a list to store the indices of the 10 closest points
+    # Initialize a list to store the indices of the n closest points
     closest_indices_list <- vector("list", length = nrow(setB))
 
     # Loop through each point in setB
     for (i in 1:nrow(setB)) {
-        # Sort distances for the current point and get indices of 10 closest points
+        # Sort distances for the current point and get indices of n closest points
         sorted_indices <- order(dist_matrix[i, ])
-        closest_indices <- sorted_indices[1:n]
+        closest_indices <- sorted_indices[1:min(n, length(sorted_indices))]
         closest_indices_list[[i]] <- closest_indices
     }
 
-    # Retrieve the actual points from Y
+    # Retrieve the actual points from setA
     closest_points_list <- lapply(closest_indices_list, function(indices) setA[indices, ])
 
     # for each setB item from closest_points_list, find the closest osrm point
-    setB %>%
+    result <- setB %>%
         mutate(closest_points = closest_points_list) %>%
         mutate(
             latitude = setB_coords[, 2],
@@ -74,13 +86,25 @@ find_closest_osrm_points_closest_n = function(setB, setA, n = 10, setB_coords = 
         ) %>%
         st_drop_geometry() %>%
         mutate(
-            closest_point =
-                pmap(
-                    list(longitude, latitude, closest_points),
-                    ~ find_closest_osrm_point(..1, ..2, setA = ..3)
-                )
-        ) %>%
+            closest_point = purrr::safely(pmap)(
+                list(longitude, latitude, closest_points),
+                ~ find_closest_osrm_point(..1, ..2, setA = ..3)
+            )
+        )
+    
+    # Handle any OSRM errors
+    errors <- result %>% 
+        filter(!map_lgl(closest_point, ~is.null(.$error))) %>%
+        pull(closest_point) %>%
+        map(~.$error)
+    
+    if (length(errors) > 0) {
+        warning("OSRM errors occurred for some points: ", length(errors), " errors")
+    }
+    
+    # Return only successful results
+    result %>%
+        filter(map_lgl(closest_point, ~is.null(.$error))) %>%
+        mutate(closest_point = map(closest_point, ~.$result)) %>%
         unnest(closest_point)
-
 }
-
