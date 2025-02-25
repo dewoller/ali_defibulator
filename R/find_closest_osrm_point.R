@@ -77,6 +77,9 @@ find_closest_osrm_points_closest_n = function(setB, setA, n = 10, setB_coords = 
     # Retrieve the actual points from setA
     closest_points_list <- lapply(closest_indices_list, function(indices) setA[indices, ])
 
+    # Create a safe version of find_closest_osrm_point
+    safe_find_closest <- purrr::safely(find_closest_osrm_point)
+    
     # for each setB item from closest_points_list, find the closest osrm point
     result <- setB %>%
         mutate(closest_points = closest_points_list) %>%
@@ -84,27 +87,29 @@ find_closest_osrm_points_closest_n = function(setB, setA, n = 10, setB_coords = 
             latitude = setB_coords[, 2],
             longitude = setB_coords[, 1]
         ) %>%
-        st_drop_geometry() %>%
-        mutate(
-            closest_point = purrr::safely(pmap)(
-                list(longitude, latitude, closest_points),
-                ~ find_closest_osrm_point(..1, ..2, setA = ..3)
-            )
-        )
+        st_drop_geometry()
     
-    # Handle any OSRM errors
-    errors <- result %>% 
-        filter(!map_lgl(closest_point, ~is.null(.$error))) %>%
-        pull(closest_point) %>%
-        map(~.$error)
+    # Process each row safely
+    results <- pmap(
+        list(
+            longitude = result$longitude,
+            latitude = result$latitude,
+            setA = result$closest_points
+        ),
+        safe_find_closest
+    )
     
-    if (length(errors) > 0) {
-        warning("OSRM errors occurred for some points: ", length(errors), " errors")
+    # Split results and errors
+    successful <- map_lgl(results, ~!is.null(.$result))
+    
+    if (!all(successful)) {
+        n_errors <- sum(!successful)
+        warning(sprintf("OSRM errors occurred for %d points", n_errors))
     }
     
-    # Return only successful results
+    # Add results back to the dataframe
     result %>%
-        filter(map_lgl(closest_point, ~is.null(.$error))) %>%
-        mutate(closest_point = map(closest_point, ~.$result)) %>%
+        mutate(closest_point = map(results, "result")) %>%
+        filter(!map_lgl(closest_point, is.null)) %>%
         unnest(closest_point)
 }
