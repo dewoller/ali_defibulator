@@ -1,4 +1,3 @@
-
 targets::tar_source()
 library(targets)
 library(tarchetypes)
@@ -88,7 +87,7 @@ tar_plan(
 				st_drop_geometry() %>%
 				select(sua_id),
 			by = join_by(sua_id)
-	)
+)
 
 	,
 
@@ -117,6 +116,16 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 
 ,
 
+	victoria_defib_cleaned_sf = victoria_defib_cleaned %>%
+		mutate( is_sja_defib = str_detect( str_to_upper( company), 'DEFIB IN'))  %>%
+		mutate( id = row_number()) %>%
+		st_as_sf(coords = c("longitude", "latitude"), crs = standard_crs) %>%
+		st_join(select(mesh_2021_vic_sf,  mb_cat_2021), join = st_intersects)
+
+		,
+
+	victoria_defib_no_sja_sf = victoria_defib_cleaned_sf %>% filter( !is_sja_defib),
+
 	################################################################################
 	# Meshblock setup
 
@@ -139,6 +148,7 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 		filter(ste_code21 == "2") %>%
 		select(
 			mb_code_2021 = mb_code21,
+			mb_cat_2021 = mb_cat21,
 			sa1_code_2021 = sa1_code21,
 			sa2_code_2021 = sa2_code21,
 			sa3_code_2021 = sa3_code21,
@@ -248,7 +258,7 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 	mesh_2021_vic_sf %>%
 		st_join(vacar_sf, join = st_intersects, left = FALSE) %>%
 		st_drop_geometry() %>%
-		select( mb_code_2021, starts_with('va_')) 
+		select( mb_code_2021, mb_cat_2021, starts_with('va_')) 
 
 	,
 
@@ -268,7 +278,7 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 		st_drop_geometry() %>%
 		tidylog::inner_join(vacar_distance_to_nearest_defib, by = join_by(va_internal_id)) %>%
 		tidylog::inner_join(vacar_distance_to_nearest_defib_no_sja, by = join_by(va_internal_id)) %>%
-		tidylog::inner_join(select(vacar_mesh_detail, mb_code_2021, va_internal_id), by = join_by(va_internal_id)) %>%
+		tidylog::inner_join(select(vacar_mesh_detail, mb_code_2021, mb_cat_2021, va_internal_id), by = join_by(va_internal_id)) %>%
 		mutate( sja_improvment_duration = duration2defib_no_sja - duration2defib ) %>%
 		mutate( sja_improvment_distance = distance2defib_no_sja - distance2defib ) %>%
 		mutate( sja_did_improvment = closest_defib_id_no_sja != closest_defib_id ) %>%
@@ -340,13 +350,6 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 
 
 	#
-	victoria_defib_cleaned_sf =
-	victoria_defib_cleaned %>%
-		mutate( is_sja_defib = str_detect( str_to_upper( company), 'DEFIB IN'))  %>%
-		st_as_sf(coords = c("longitude", "latitude"), crs = standard_crs) ,
-
-	victoria_defib_no_sja_sf = victoria_defib_cleaned_sf %>% filter( !is_sja_defib),
-
 	victoria_defib_sua_temp =
 	victoria_defib_cleaned %>%
 		mutate(
@@ -417,6 +420,7 @@ victoria_defib_sua =
 		select( -starts_with('nn'), -isochrone, -starts_with('.group')) %>%
 		tidylog::left_join(count(vacar_sua, sua_id, name = "n_vacar_arrest"), by = join_by(sua_id)) %>%
 		tidylog::left_join( st_drop_geometry( reservoir_defib_sf ), by = join_by(sua_id)) %>%
+		tidylog::left_join( st_drop_geometry(select(victoria_defib_cleaned_sf, sua_id, defib_mb_cat = mb_cat_2021)), by = join_by(sua_id)) %>%
 		replace_na( list( defib_in_reservoir_buffer = FALSE))
 
 
