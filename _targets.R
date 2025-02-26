@@ -568,23 +568,27 @@ victoria_defib_sua =
 		as_tibble() %>%
 		tidylog::inner_join( select( mesh2sa1, ends_with('2021')), by = join_by(sa1_code_2021)) 
 
-	,
-
-
-	#
-	#
-	#
-	# xls	output
-	export_sja =
-	list(
-		vacar= vacar_export,
-		mesh= mesh_export,
-		sua_noh = sua_noh_mesh_export
-		) %>%
-		openxlsx::write.xlsx('output/victoria_export.xlsx')
 
 	,
+# Create a list of dataframes to export
+export_list = list(
+  vacar = vacar_export,
+  mesh = mesh_export,
+  sua_noh = sua_noh_mesh_export
+)
+,
 
+# Export each dataframe to its own CSV file
+export_list_csv = for (name in names(export_list)) {
+  write.csv(export_list[[name]], file = paste0("output/", name, ".csv"), row.names = FALSE)
+}
+
+,
+
+# Optionally, also keep your Excel export
+export_list_xlsx = openxlsx::write.xlsx(export_list, 'output/victoria_export.xlsx')
+
+,
 
 	all_json_output =
 	list(
