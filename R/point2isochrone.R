@@ -1,7 +1,7 @@
 point2isochrone = function(
   latitude,
   longitude,
-  time_limit = 1.92*60,
+  time_limit = 1.94,
   mode = "foot",
   orsm = "http://localhost:1234/",
   fallback_radius = 160
@@ -12,7 +12,7 @@ point2isochrone = function(
   # Attempt to get an isochrone
   isochrone <- tryCatch({
     osrmIsochrone(loc = c(longitude, latitude),
-                  breaks = seq(0, 5, 5))
+                  breaks = seq(0, time_limit, time_limit))
   }, error = function(e) {
     # If OSRM fails or times out
     NULL

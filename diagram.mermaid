@@ -1,0 +1,139 @@
+flowchart TD
+    %% Input Data Sources
+    I1[/"postcode2021.rds"/] -->|Read & Process| DP1
+    I2[/"SUA-24-2-25.csv"/] -->|Read| DP2
+    I3[/"VACAR_Data_2019_2023.csv"/] --> VP1
+    I4[/"Census Data"/] --> CP1
+    I5[/"MB_2021_AUST_GDA2020.shp"/] --> GP1
+    I6[/"SEIFA Excel Files"/] --> CP2
+    
+    %% Geographic Processing
+    subgraph "Geographic Processing"
+        GP1[Process Meshblocks] --> mesh_vic_sf
+        GP2[Read strayr Maps] --> sa1_suburb
+        mesh_vic_sf --> centroid_sf[Create Centroids]
+        sa1_suburb --> reservoir_sf[Extract Reservoir]
+        reservoir_sf --> buffer_sf[Create Buffer]
+    end
+    
+    %% Reservoir Processing
+    subgraph "Reservoir-Specific Analysis"
+        RP1[Identify Meshblocks in Reservoir] 
+        RP2[Identify Defibs in Reservoir]
+        RP3[Extract SUA in Reservoir]
+    end
+    
+    %% Defibrillator Processing
+    subgraph "Defibrillator Processing"
+        DP1[Generate Defib URLs]
+        DP2[Clean Defib Data] --> defib_clean[victoria_defib_cleaned]
+        defib_clean --> defib_sf[Convert to Spatial]
+        defib_sf --> defib_no_sja[Filter Non-SJA]
+    end
+    
+    %% Census & Demographic Processing
+    subgraph "Census Processing"
+        CP1[Extract CALD Data] --> cald_sa1
+        CP3[Extract Age 55+ Data] --> age_sa1
+        CP2[Process SEIFA Data] --> seifa_data
+        cald_sa1 --> cald_mesh[Distribute to Meshblocks]
+        age_sa1 --> age_mesh[Distribute to Meshblocks]
+        seifa_data --> sa1_seifa[Create SA1 SEIFA]
+        mesh2sa1 --> MP1
+    end
+    
+    %% Mesh Detail
+    subgraph "Mesh Detail Processing"
+        MP1[Combine Mesh Data]
+        cald_mesh --> MP1
+        age_mesh --> MP1
+        sa1_seifa --> MP1
+        MP1 --> mesh_detail[mesh_detail_final]
+    end
+    
+    %% VACAR Processing
+    subgraph "VACAR Processing"
+        VP1[Load VACAR Data] --> vacar_sf
+        vacar_sf --> vacar_mesh[Join with Meshblocks]
+        vacar_sf --> vacar_sua[Join with SUA]
+    end
+    
+    %% Distance Calculations
+    subgraph "Distance Calculations"
+        DC1[Find Nearest Defib to VACAR]
+        DC2[Find Nearest Non-SJA Defib to VACAR]
+        DC3[Find Nearest Defib to Meshblocks]
+        DC4[Find Nearest Non-SJA Defib to Meshblocks]
+    end
+    
+    %% SUA Processing
+    subgraph "Service Unit Area Processing"
+        SP1[Create Isochrones] --> sua_temp
+        sua_temp --> sua[Process Isochrones]
+        sua --> sua_noh[Remove Holes]
+        sua_noh --> sua_sf[Convert to Multi]
+        sua_sf --> sua_mesh[Find Closest Meshblocks]
+        sua_mesh --> sua_summarised[Summarize Demographics]
+    end
+    
+    %% Summary & Export
+    subgraph "Summary & Export"
+        S1[Prepare Mesh Export]
+        S2[Prepare VACAR Export]
+        S3[Prepare SUA Export]
+        E1[Write to Excel]
+        E2[Write to GeoJSON]
+    end
+    
+    %% Connections between major components
+    GP1 --> mesh2sa1[Create Mesh to SA1 Mapping]
+    defib_sf --> RP2
+    buffer_sf --> RP1
+    buffer_sf --> RP2
+    sua_sf --> RP3
+    
+    vacar_sf --> DC1
+    vacar_sf --> DC2
+    centroid_sf --> DC3
+    centroid_sf --> DC4
+    defib_sf --> DC1
+    defib_sf --> DC3
+    defib_no_sja --> DC2
+    defib_no_sja --> DC4
+    
+    defib_clean --> SP1
+    
+    mesh_detail --> S1
+    DC3 --> S1
+    DC4 --> S1
+    RP1 --> S1
+    
+    vacar_sf --> S2
+    DC1 --> S2
+    DC2 --> S2
+    vacar_mesh --> S2
+    S1 --> S2
+    vacar_sua --> S2
+    
+    sua_summarised --> S3
+    vacar_sua --> S3
+    RP2 --> S3
+    defib_sf --> S3
+    
+    S1 --> E1
+    S2 --> E1
+    S3 --> E1
+    
+    buffer_sf --> E2
+    mesh_vic_sf --> E2
+    centroid_sf --> E2
+    vacar_sf --> E2
+    defib_sf --> E2
+    defib_no_sja --> E2
+    sua_sf --> E2
+    RP2 --> E2
+    RP3 --> E2
+    
+    %% Output Files
+    E1 --> O1[/"victoria_export.xlsx"/]
+    E2 --> O2[/"GeoJSON Files"/]

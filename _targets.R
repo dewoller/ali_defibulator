@@ -379,7 +379,7 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 			~ point2isochrone(
 				latitude = .x,
 				longitude = .y,
-				time_limit = 1.94*60,
+				time_limit = 1.94,
 				mode = "foot",
 				orsm = "http://localhost:1234/",
 				fallback_radius = 160
