@@ -317,7 +317,7 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 	vacar_distance_to_nearest_defib_no_sja =
 	find_closest_osrm_points_closest_n(
 			select( vacar_sf, -starts_with('mb_cat_2021')), 
-			select( victoria_defib_cleaned_sf, -starts_with('mb_cat_2021')),  
+			select( victoria_defib_no_sja_sf, -starts_with('mb_cat_2021')),  
 			n = 10) %>%
 		mutate( closest_defib_name = paste( company, address, postcode )) %>%
 		select(va_internal_id, 
@@ -391,23 +391,7 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 	,
 
 victoria_defib_sua = 
-
-	victoria_defib_sua_temp %>%
-		mutate(type = map_chr(isochrone, ~ {
-			cl <- class(.x)
-			if ("sf" %in% cl) {
-				return("sf")
-			} else if ("POLYGON" %in% cl || "sfg" %in% cl) {
-				return("polygon")
-			} else {
-				return("unknown")
-			}
-		})) %>%
-		filter(type == "sf") %>%
-		select(-type) %>%
-		mutate(isochrone = map(isochrone, st_make_valid)) %>%
-		mutate( sua_area = map_dbl(isochrone, ~ st_area(.x) %>% units::drop_units())) %>%
-		mutate( is_sja_defib = str_detect( str_to_upper( company), 'DEFIB IN')) 
+	process_sua_isochrones(victoria_defib_sua_temp) 
 
 	,
 

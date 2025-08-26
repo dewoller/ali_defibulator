@@ -1,9 +1,13 @@
 st_singles_to_multi = function( sua )  {
-	sua %>% 
-		select( isochrone) %>% 
-		unlist(recursive = FALSE) %>% 
-		do.call(rbind, .) %>%
-		bind_cols( sua %>% select( -isochrone)) 
-
+	# Combine individual sfc objects into a single sfc column
+	combined_sfc <- do.call(c, sua$isochrone)
+	
+	# Create sf object
+	sua_sf <- sua %>%
+		select(-isochrone) %>%
+		mutate(geometry = combined_sfc) %>%
+		st_as_sf()
+	
+	return(sua_sf)
 }
 	
