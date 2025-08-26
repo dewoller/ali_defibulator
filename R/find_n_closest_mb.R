@@ -3,6 +3,9 @@ if(FALSE) {
 	meshes = mesh_in_victoria
 	sua = victoria_defib_sua_no_holes_grouped
 
+	sua = sua_noh 
+		meshes = mesh_2021_vic_centroid_sf
+
 }
 find_n_closest_mb = function( sua, meshes, n=20 ) {
 

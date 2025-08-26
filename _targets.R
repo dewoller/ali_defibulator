@@ -391,6 +391,7 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 	,
 
 victoria_defib_sua = 
+
 	victoria_defib_sua_temp %>%
 		mutate(type = map_chr(isochrone, ~ {
 			cl <- class(.x)
@@ -407,6 +408,7 @@ victoria_defib_sua =
 		mutate(isochrone = map(isochrone, st_make_valid)) %>%
 		mutate( sua_area = map_dbl(isochrone, ~ st_area(.x) %>% units::drop_units())) %>%
 		mutate( is_sja_defib = str_detect( str_to_upper( company), 'DEFIB IN')) 
+
 	,
 
 	sua_noh = 
@@ -423,6 +425,7 @@ victoria_defib_sua =
 	# find intersection of Meshblock and SUA
 	#
 	sua_noh_with_closest_mesh =
+
 	sua_noh %>%
 		find_n_closest_mb(mesh_2021_vic_centroid_sf, n = 100)
 

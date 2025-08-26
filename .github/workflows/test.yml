@@ -1,0 +1,206 @@
+name: R Package Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  R_KEEP_PKG_SOURCE: yes
+  
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        r-version: ['4.3', '4.4']
+        
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup R ${{ matrix.r-version }}
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: ${{ matrix.r-version }}
+        use-public-rspm: true
+        
+    - name: Setup R Dependencies
+      uses: r-lib/actions/setup-r-dependencies@v2
+      with:
+        extra-packages: |
+          any::devtools
+          any::testthat
+          any::covr
+          any::mockery
+        needs: |
+          check
+          coverage
+          
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgdal-dev \
+          libproj-dev \
+          libgeos-dev \
+          libudunits2-dev \
+          libnetcdf-dev \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libxml2-dev
+          
+    - name: Cache R packages
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.R_LIBS_USER }}
+        key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('.github/depends.Rds') }}
+        restore-keys: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-
+        
+    - name: Install R Package Dependencies
+      shell: Rscript {0}
+      run: |
+        # Install additional spatial and analysis packages
+        if (!require("sf")) install.packages("sf")
+        if (!require("targets")) install.packages("targets")
+        if (!require("dplyr")) install.packages("dplyr")
+        if (!require("purrr")) install.packages("purrr")
+        if (!require("stringr")) install.packages("stringr")
+        if (!require("tidyr")) install.packages("tidyr")
+        if (!require("readr")) install.packages("readr")
+        if (!require("janitor")) install.packages("janitor")
+        if (!require("glue")) install.packages("glue")
+        if (!require("fs")) install.packages("fs")
+        if (!require("lubridate")) install.packages("lubridate")
+        if (!require("jsonlite")) install.packages("jsonlite")
+        if (!require("units")) install.packages("units")
+        if (!require("geosphere")) install.packages("geosphere")
+        if (!require("nngeo")) install.packages("nngeo")
+        if (!require("strayr")) install.packages("strayr")
+        if (!require("readxl")) install.packages("readxl")
+        if (!require("openxlsx")) install.packages("openxlsx")
+        
+        # Testing packages
+        if (!require("testthat")) install.packages("testthat")
+        if (!require("mockery")) install.packages("mockery")
+        if (!require("covr")) install.packages("covr")
+        if (!require("devtools")) install.packages("devtools")
+        
+    - name: Create Mock Test Data
+      shell: Rscript {0}
+      run: |
+        Sys.setenv(CREATE_MOCK_DATA = "TRUE")
+        source("tests/fixtures/enhanced_mock_data.R")
+        
+    - name: Run Unit Tests
+      shell: Rscript {0} 
+      run: |
+        library(testthat)
+        library(devtools)
+        
+        # Load the package
+        load_all()
+        
+        # Run unit tests only (skip integration tests that need external services)
+        test_results <- test_dir(
+          "tests/testthat/",
+          filter = "test-(find_|get_|summarise_|point2|packages|st_singles|antijoin|utility)",
+          reporter = "summary",
+          stop_on_failure = FALSE
+        )
+        
+        # Check results
+        if (any(as.data.frame(test_results)$failed > 0, na.rm = TRUE)) {
+          stop("Unit tests failed")
+        }
+        
+    - name: Run Integration Tests (No External Dependencies)
+      shell: Rscript {0}
+      run: |
+        library(testthat)
+        library(devtools)
+        
+        # Load the package
+        load_all()
+        
+        # Run only integration tests that don't require external services
+        test_results <- test_dir(
+          "tests/testthat/",
+          filter = "test-helpers",
+          reporter = "summary", 
+          stop_on_failure = FALSE
+        )
+        
+    - name: Generate Test Coverage
+      if: matrix.r-version == '4.4'  # Only run coverage on latest R version
+      shell: Rscript {0}
+      run: |
+        library(covr)
+        
+        # Generate coverage report
+        cov <- package_coverage(
+          type = "tests",
+          quiet = FALSE
+        )
+        
+        # Save coverage
+        report(cov, file = "coverage.html")
+        
+        # Print summary
+        print(cov)
+        
+    - name: Upload Coverage Reports
+      if: matrix.r-version == '4.4'
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: coverage.html
+        
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v3  
+      with:
+        name: test-results-r${{ matrix.r-version }}
+        path: |
+          tests/testthat/
+          *.log
+          
+  # Optional: Lint checks
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        use-public-rspm: true
+        
+    - name: Install lintr
+      shell: Rscript {0}
+      run: install.packages("lintr")
+      
+    - name: Lint R Code
+      shell: Rscript {0}
+      run: |
+        library(lintr)
+        
+        # Lint R files in the R/ directory
+        lints <- lint_dir("R/")
+        
+        # Print lints
+        if (length(lints) > 0) {
+          print(lints)
+          # Note: We don't fail on lint issues, just report them
+        } else {
+          cat("✓ No linting issues found\n")
+        }
