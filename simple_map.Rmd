@@ -1,0 +1,118 @@
+---
+title: "AED Coverage Analysis - Interactive Map"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(leaflet)
+library(sf)
+library(dplyr)
+library(targets)
+
+# Load data
+tar_load(c('sua_noh_sf', 'victoria_defib_cleaned_sf', 'vacar_sf', 'reservoir_buffered_sf'))
+```
+
+# AED Coverage Analysis
+
+## Interactive Map
+
+```{r map, fig.height=8}
+leaflet() %>%
+  addProviderTiles(providers$OpenStreetMap.Mapnik) %>%
+  setView(lng = 145.02, lat = -37.72, zoom = 13) %>%
+  
+  # Add reservoir boundary
+  addPolygons(
+    data = reservoir_buffered_sf,
+    fillColor = "#ffaa00",
+    color = "#ff6600", 
+    weight = 2,
+    opacity = 0.8,
+    fillOpacity = 0.1,
+    popup = "<strong>Reservoir Study Area</strong>",
+    group = "Study Area"
+  ) %>%
+  
+  # Add SUA catchments
+  addPolygons(
+    data = sua_noh_sf,
+    fillColor = "#cccccc",
+    color = "#666666",
+    weight = 1,
+    opacity = 0.8,
+    fillOpacity = 0.3,
+    popup = ~paste0(
+      "<strong>SUA ID:</strong> ", sua_id, "<br>",
+      "<strong>Company:</strong> ", company, "<br>",
+      "<strong>Address:</strong> ", address, "<br>",
+      "<strong>SJA AED:</strong> ", ifelse(is_sja_defib, "Yes", "No"), "<br>",
+      "<strong>Area:</strong> ", round(sua_area), " m²"
+    ),
+    group = "SUA Catchments"
+  ) %>%
+  
+  # Add AED locations
+  addCircleMarkers(
+    data = victoria_defib_cleaned_sf,
+    radius = 6,
+    fillColor = ~ifelse(is_sja_defib, "#44ff44", "#4444ff"),
+    color = "#000000",
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0.8,
+    popup = ~paste0(
+      "<strong>AED Location</strong><br>",
+      "<strong>Company:</strong> ", company, "<br>",
+      "<strong>Address:</strong> ", address, "<br>",
+      "<strong>SJA AED:</strong> ", ifelse(is_sja_defib, "Yes", "No")
+    ),
+    group = "AED Locations"
+  ) %>%
+  
+  # Add cardiac arrests
+  addCircleMarkers(
+    data = vacar_sf,
+    radius = 3,
+    fillColor = "#ff4444",
+    color = "#000000", 
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0.6,
+    popup = ~paste0(
+      "<strong>Cardiac Arrest</strong><br>",
+      "<strong>Date:</strong> ", va_date, "<br>",
+      "<strong>Age:</strong> ", va_ageyears, " years<br>",
+      "<strong>Gender:</strong> ", ifelse(va_malegender, "Male", "Female")
+    ),
+    group = "Cardiac Arrests"
+  ) %>%
+  
+  # Add layer controls
+  addLayersControl(
+    overlayGroups = c("Study Area", "SUA Catchments", "AED Locations", "Cardiac Arrests"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  
+  # Add legend
+  addLegend(
+    position = "bottomright",
+    colors = c("#ff4444", "#4444ff", "#44ff44", "#cccccc"),
+    labels = c("Cardiac Arrests", "Non-SJA AEDs", "SJA AEDs", "SUA Catchments"),
+    opacity = 0.8,
+    title = "Legend"
+  )
+```
+
+## Summary Statistics
+
+```{r stats}
+total_aeds <- nrow(victoria_defib_cleaned_sf)
+sja_aeds <- sum(victoria_defib_cleaned_sf$is_sja_defib, na.rm = TRUE)
+total_arrests <- nrow(vacar_sf)
+
+cat("**Total AEDs:** ", total_aeds, " (", sja_aeds, " SJA, ", total_aeds - sja_aeds, " Non-SJA)\n\n")
+cat("**Total Cardiac Arrests:** ", total_arrests, "\n\n")
+cat("**SUA Catchments:** ", nrow(sua_noh_sf), " areas covering 2.479 minutes walking time\n\n")
+```

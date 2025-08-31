@@ -1,7 +1,7 @@
 point2isochrone = function(
   latitude,
   longitude,
-  time_limit = 1.94,
+  time_limit = 2.479,
   mode = "foot",
   orsm = "http://localhost:1234/",
   fallback_radius = 160

@@ -1,0 +1,251 @@
+---
+title: "AED Coverage Analysis - Interactive Map"
+output: 
+  html_document:
+    self_contained: true
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(leaflet)
+library(sf)
+library(dplyr)
+library(htmlwidgets)
+library(targets)
+
+# Load all data directly from targets (no external files needed)
+tar_load(c(
+  'sua_noh_sf',
+  'sua_noh_mesh_export', 
+  'victoria_defib_cleaned_sf',
+  'vacar_sf',
+  'vacar_export', 
+  'reservoir_buffered_sf'
+))
+
+# Join SUA geometries with arrest data
+sua_data <- sua_noh_sf %>%
+  left_join(
+    sua_noh_mesh_export %>% 
+      select(sua_id, n_vacar_arrest, cald_pop, age_55_plus_pop) %>%
+      mutate(
+        cald_pop = coalesce(as.numeric(cald_pop), 0),
+        age_55_plus_pop = coalesce(as.numeric(age_55_plus_pop), 0),
+        n_vacar_arrest = coalesce(n_vacar_arrest, 0)
+      ),
+    by = "sua_id"
+  ) %>%
+  mutate(
+    arrest_category = case_when(
+      n_vacar_arrest == 0 ~ "No arrests",
+      n_vacar_arrest == 1 ~ "1 arrest", 
+      n_vacar_arrest >= 2 ~ "2+ arrests"
+    )
+  )
+
+# Join VACAR with processed data for mapping
+vacar_map_data <- vacar_sf %>%
+  left_join(
+    vacar_export %>% 
+      select(va_internal_id, distance2defib, duration2defib, closest_defib_name, within_how_many_sua) %>%
+      mutate(
+        distance2defib = coalesce(distance2defib, 0),
+        duration2defib = coalesce(duration2defib, 0),
+        within_how_many_sua = coalesce(within_how_many_sua, 0)
+      ),
+    by = "va_internal_id"
+  )
+```
+
+# AED Coverage Analysis Dashboard
+
+## Key Statistics
+
+```{r stats}
+total_aeds <- nrow(victoria_defib_cleaned_sf)
+sja_aeds <- sum(victoria_defib_cleaned_sf$is_sja_defib, na.rm = TRUE)
+total_arrests <- nrow(vacar_sf)
+arrests_in_suas <- sum(vacar_map_data$within_how_many_sua > 0, na.rm = TRUE)
+suas_with_arrests <- sum(sua_data$n_vacar_arrest > 0, na.rm = TRUE)
+
+cat("📍 **AEDs:** ", total_aeds, " total (", sja_aeds, " SJA, ", total_aeds - sja_aeds, " Non-SJA)\n\n")
+cat("🚑 **Cardiac Arrests:** ", total_arrests, " total, ", arrests_in_suas, " (", round(arrests_in_suas/total_arrests*100, 1), "%) within catchments\n\n")
+cat("🎯 **Coverage:** ", suas_with_arrests, " out of ", nrow(sua_data), " AED catchments contain cardiac arrests\n\n")
+cat("⏱️ **Catchment Size:** 2.479 minutes walking time via real street networks\n\n")
+```
+
+## Interactive Map
+
+```{r map, fig.height=8}
+# Color palette for SUAs based on arrest counts
+sua_colors <- colorFactor(
+  palette = c("#e0e0e0", "#ffcc99", "#ff6666"),
+  domain = c("No arrests", "1 arrest", "2+ arrests")
+)
+
+map <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(lng = 145.02, lat = -37.72, zoom = 13) %>%
+  
+  # Add reservoir study area
+  addPolygons(
+    data = reservoir_buffered_sf,
+    fillColor = "#ffaa00",
+    color = "#ff8800", 
+    weight = 2,
+    opacity = 0.9,
+    fillOpacity = 0.15,
+    popup = "<strong>Reservoir Study Area</strong><br>400m buffer zone",
+    group = "Study Area"
+  ) %>%
+  
+  # Add SUA catchments with color coding by arrest count
+  addPolygons(
+    data = sua_data,
+    fillColor = ~sua_colors(arrest_category),
+    color = "#555555",
+    weight = 1.5,
+    opacity = 0.8,
+    fillOpacity = 0.6,
+    popup = ~paste0(
+      "<div style='font-family: Arial; font-size: 13px;'>",
+      "<b>", ifelse(is_sja_defib, "🟢 SJA AED", "🔵 Non-SJA AED"), "</b><br>",
+      "<b>Company:</b> ", company, "<br>",
+      "<b>Address:</b> ", address, "<br>",
+      "<b>Cardiac Arrests:</b> ", n_vacar_arrest, "<br>",
+      "<b>Catchment Area:</b> ", round(sua_area), " m²<br>",
+      "<b>CALD Population:</b> ", round(cald_pop), "<br>",
+      "<b>Age 55+ Population:</b> ", round(age_55_plus_pop),
+      "</div>"
+    ),
+    highlightOptions = highlightOptions(
+      weight = 3,
+      color = "#333333",
+      fillOpacity = 0.8,
+      bringToFront = TRUE
+    ),
+    group = "AED Catchments"
+  ) %>%
+  
+  # Add AED locations
+  addCircleMarkers(
+    data = victoria_defib_cleaned_sf,
+    radius = 8,
+    fillColor = ~ifelse(is_sja_defib, "#44dd44", "#4488ff"),
+    color = "#ffffff",
+    weight = 2,
+    opacity = 1,
+    fillOpacity = 0.9,
+    popup = ~paste0(
+      "<div style='font-family: Arial; font-size: 13px;'>",
+      "<b>", ifelse(is_sja_defib, "🟢 SJA AED", "🔵 Non-SJA AED"), "</b><br>",
+      "<b>Company:</b> ", company, "<br>",
+      "<b>Address:</b> ", address, "<br>",
+      "<b>Postcode:</b> ", postcode, "<br>",
+      "<b>Arrests in Catchment:</b> ", coalesce(n_vacar_arrest, 0),
+      "</div>"
+    ),
+    group = "AED Locations"
+  ) %>%
+  
+  # Add cardiac arrests with different colors based on SUA coverage
+  addCircleMarkers(
+    data = vacar_map_data,
+    radius = ~ifelse(within_how_many_sua > 0, 6, 4),
+    fillColor = ~ifelse(within_how_many_sua > 0, "#ff2222", "#ff8888"),
+    color = "#000000",
+    weight = 1,
+    opacity = 1,
+    fillOpacity = ~ifelse(within_how_many_sua > 0, 0.9, 0.6),
+    popup = ~paste0(
+      "<div style='font-family: Arial; font-size: 13px;'>",
+      "<b>🚑 Cardiac Arrest</b><br>",
+      "<b>Date:</b> ", va_date, "<br>",
+      "<b>Age:</b> ", va_ageyears, " years<br>",
+      "<b>Gender:</b> ", ifelse(va_malegender, "Male", "Female"), "<br>",
+      "<b>Distance to AED:</b> ", round(distance2defib), "m<br>",
+      "<b>Walking Time:</b> ", round(duration2defib, 1), " min<br>",
+      "<b>Closest AED:</b> ", substr(closest_defib_name, 1, 50), "...<br>",
+      "<b>Within Catchment:</b> ", ifelse(within_how_many_sua > 0, "✅ Yes", "❌ No"),
+      "</div>"
+    ),
+    group = "Cardiac Arrests"
+  ) %>%
+  
+  # Add layer controls
+  addLayersControl(
+    baseGroups = c("Map"),
+    overlayGroups = c("Study Area", "AED Catchments", "AED Locations", "Cardiac Arrests"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  
+  # Add custom legend
+  addLegend(
+    position = "bottomright",
+    colors = c("#ff2222", "#ff8888", "#4488ff", "#44dd44", "#e0e0e0", "#ffcc99", "#ff6666"),
+    labels = c(
+      "🚑 Arrests (in catchment)",
+      "🚑 Arrests (outside catchment)", 
+      "🔵 Non-SJA AEDs",
+      "🟢 SJA AEDs",
+      "Catchments: No arrests",
+      "Catchments: 1 arrest",
+      "Catchments: 2+ arrests"
+    ),
+    opacity = 0.8,
+    title = "<b>Legend</b>"
+  )
+
+map
+```
+
+## Analysis Summary
+
+### Catchment Performance
+
+```{r catchment_summary}
+catchment_summary <- sua_data %>%
+  st_drop_geometry() %>%
+  group_by(sja_group = ifelse(is_sja_defib, "SJA", "Non-SJA")) %>%
+  summarise(
+    n_aeds = n(),
+    aeds_with_arrests = sum(n_vacar_arrest > 0),
+    total_arrests = sum(n_vacar_arrest),
+    mean_arrests = round(mean(n_vacar_arrest), 2),
+    prop_with_arrests = round(aeds_with_arrests / n_aeds * 100, 1),
+    mean_area_m2 = round(mean(sua_area)),
+    .groups = 'drop'
+  )
+
+knitr::kable(catchment_summary, 
+             col.names = c("AED Type", "Count", "With Arrests", "Total Arrests", 
+                          "Mean Arrests", "% With Arrests", "Mean Area (m²)"),
+             caption = "AED Catchment Performance by Type")
+```
+
+### Distance Analysis
+
+```{r distance_summary}
+distance_summary <- vacar_map_data %>%
+  st_drop_geometry() %>%
+  summarise(
+    `Total Incidents` = n(),
+    `Within Catchments` = sum(within_how_many_sua > 0),
+    `% Coverage` = round(sum(within_how_many_sua > 0) / n() * 100, 1),
+    `Mean Distance (m)` = round(mean(distance2defib, na.rm = TRUE)),
+    `Mean Walking Time (min)` = round(mean(duration2defib, na.rm = TRUE), 1),
+    `Max Distance (m)` = round(max(distance2defib, na.rm = TRUE)),
+    `Min Distance (m)` = round(min(distance2defib, na.rm = TRUE))
+  )
+
+knitr::kable(t(distance_summary), 
+             col.names = "Value",
+             caption = "Cardiac Arrest Distance to Nearest AED")
+```
+
+---
+
+*Map uses real street network routing (OSRM) for accurate walking distances and times.*  
+*Data processed from Victorian AED registry and VACAR cardiac arrest database.*

@@ -379,7 +379,7 @@ victoria_defib_cleaned_prelim = read_csv("data/SUA-24-2-25.csv")
 			~ point2isochrone(
 				latitude = .x,
 				longitude = .y,
-				time_limit = 1.94,
+				time_limit = 2.479,
 				mode = "foot",
 				orsm = "http://localhost:1234/",
 				fallback_radius = 160
@@ -400,6 +400,7 @@ victoria_defib_sua =
 		mutate(isochrone = map(isochrone, nngeo::st_remove_holes)),
 
 	sua_noh_sf = 
+
 	sua_noh %>%
 		st_singles_to_multi()
 
