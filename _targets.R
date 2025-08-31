@@ -57,7 +57,7 @@ tar_plan(
 		select(geometry),
 
 	#
-	reservoir_buffered_sf = reservoir_sf %>% st_buffer(400),
+	reservoir_buffered_sf = reservoir_sf %>% st_buffer(161),
 
 	#
 	#  which mesh blocks are in reservoir buffered area
@@ -601,13 +601,20 @@ export_list_xlsx = openxlsx::write.xlsx(export_list, 'output/victoria_export.xls
 	) %>%
 		purrr::walk2(names(.), ., ~ st_write(.y, glue::glue("output/{.x}.geojson"), delete_dsn = TRUE))
 
+	,
+
+	# Interactive HTML mapping outputs - use file format to handle R Markdown properly
+	tar_file(html_simple_map, {
+		rmarkdown::render("simple_map.Rmd", output_dir = "output")
+		"output/simple_map.html"
+	})
+
+	,
+
+	tar_file(html_minimal_map, {
+		rmarkdown::render("minimal_map.Rmd", output_dir = "output") 
+		"output/minimal_map.html"
+	})
 
 
-	#
-	# 	,
-	#
-	#
-	#
-	#
-	#
 )
